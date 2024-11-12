@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:user_list_app/provider/user_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:user_list_app/provider/user_provider.dart';
+import 'package:user_list_app/screens/search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -11,22 +12,47 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
 
   @override
+  void initState() {
+    super.initState();
+    // Fetch users when the screen initializes
+    Provider.of<UserProvider>(context, listen: false).fetchUsers();
+  }
+
+  Future<void> _refreshUsers() async {
+    await Provider.of<UserProvider>(context, listen: false).fetchUsers();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
     final users = userProvider.users
-        .where((user) => user['name'].toLowerCase().contains(_searchQuery.toLowerCase()))
+        .where((user) =>
+            user['name'].toLowerCase().contains(_searchQuery.toLowerCase()))
         .toList();
+    final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('User List'),
+        title: const Text(
+          'User List',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue, Colors.lightBlueAccent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         actions: [
           IconButton(
-            icon: Icon(Icons.search),
+            icon: const Icon(Icons.search, color: Colors.white),
             onPressed: () async {
               final query = await showSearch<String>(
                 context: context,
-                delegate: CustomSearchDelegate(),
+                delegate: CustomSearchDelegate(screenWidth: screenWidth),
               );
               if (query != null) {
                 setState(() {
@@ -37,61 +63,81 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: userProvider.isLoading
-          ? Center(child: CircularProgressIndicator())
-          : userProvider.errorMessage.isNotEmpty
-              ? Center(child: Text(userProvider.errorMessage))
-              : ListView.builder(
-                  itemCount: users.length,
-                  itemBuilder: (ctx, index) {
-                    final user = users[index];
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundImage: NetworkImage('https://via.placeholder.com/150'),
-                      ),
-                      title: Text(user['name']),
-                      subtitle: Text(user['email']),
-                    );
-                  },
+      body: Container(
+        color: Colors.blueGrey[50],
+        padding: const EdgeInsets.all(8.0),
+        child: userProvider.isLoading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  color: Colors.blueAccent,
+                  strokeWidth: 5,
                 ),
+              )
+            : userProvider.errorMessage.isNotEmpty
+                ? Center(
+                    child: Text(
+                      userProvider.errorMessage,
+                      style: const TextStyle(fontSize: 18, color: Colors.red),
+                    ),
+                  )
+                : users.isEmpty
+                    ? const Center(
+                        child: Text(
+                          "No users found.",
+                          style: TextStyle(fontSize: 18),
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _refreshUsers,
+                        child: ListView.builder(
+                          itemCount: users.length,
+                          itemBuilder: (ctx, index) {
+                            final user = users[index];
+                            return Card(
+                              color: Colors.lightBlue[100],
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15.0),
+                              ),
+                              elevation: 4,
+                              margin: EdgeInsets.symmetric(
+                                  vertical: 8.0,
+                                  horizontal: screenWidth * 0.05),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.all(12.0),
+                                leading: const CircleAvatar(
+                                  backgroundImage: AssetImage(
+                                    'assets/women.jpg',
+                                  ),
+                                  radius: 30,
+                                ),
+                                title: Text(
+                                  user['name'],
+                                  style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black87),
+                                ),
+                                subtitle: Text(
+                                  user['email'],
+                                  style: const TextStyle(
+                                      fontSize: 16, color: Colors.blueGrey),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+      ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => userProvider.fetchUsers(),
-        child: Icon(Icons.refresh),
-      ),
-    );
-  }
-}
-
-class CustomSearchDelegate extends SearchDelegate<String> {
-  @override
-  List<Widget> buildActions(BuildContext context) {
-    return [
-      IconButton(
-        icon: Icon(Icons.clear),
+        backgroundColor: Colors.blueAccent,
         onPressed: () {
-          query = '';
+          setState(() {
+            _searchQuery = ''; // Reset search query
+          });
+          userProvider.fetchUsers(); // Refresh user data
         },
+        child: const Icon(Icons.refresh, color: Colors.white),
       ),
-    ];
-  }
-
-  @override
-  Widget buildLeading(BuildContext context) {
-    return IconButton(
-      icon: Icon(Icons.arrow_back),
-      onPressed: () {
-        close(context, '');
-      },
     );
-  }
-
-  @override
-  Widget buildResults(BuildContext context) {
-    return Container(); // You can handle the search results display here.
-  }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    return Container(); // You can provide search suggestions here.
   }
 }

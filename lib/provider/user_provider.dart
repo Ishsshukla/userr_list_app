@@ -11,23 +11,29 @@ class UserProvider with ChangeNotifier {
   String get errorMessage => _errorMessage;
   List<dynamic> get users => _users;
 
-  // Fetch users from API
   Future<void> fetchUsers() async {
     _isLoading = true;
     _errorMessage = '';
     notifyListeners();
-
+    print("Fetching users..."); // Debugging line
     try {
-      final response = await http.get(Uri.parse('https://jsonplaceholder.typicode.com/users'));
+      final response = await http
+          .get(Uri.parse('https://jsonplaceholder.typicode.com/users'));
 
       if (response.statusCode == 200) {
+        // Successfully fetched data
+        print('response================$response');
         final List<dynamic> userData = json.decode(response.body);
         _users = userData;
+        print('userData================$userData');
       } else {
-        _errorMessage = 'Failed to load data';
+        // Handle server errors
+        _errorMessage =
+            'Failed to load data: Server error with status code ${response.statusCode}';
       }
     } catch (error) {
-      _errorMessage = 'Network error occurred';
+      // Handle network errors
+      _errorMessage = 'No Internet Connection';
     } finally {
       _isLoading = false;
       notifyListeners();
